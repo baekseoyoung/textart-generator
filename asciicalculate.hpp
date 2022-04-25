@@ -1,5 +1,5 @@
+#include <vector>
 #include <string>
 
-std::string graypix(int pixelVal);
-
-std::string func_init_pixel(int txtW, int txtH);
+void func_init_text(int textRow, int textCol, std::vector<std::string> *text);
+std::string func_gray2text(int p);

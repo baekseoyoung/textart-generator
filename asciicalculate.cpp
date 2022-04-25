@@ -1,9 +1,24 @@
 #include <iostream>
 #include <string>
+#include <vector>
+
 #include "asciicalculate.hpp"
 
-std::string graypix(int p) {
-	std::string str;
+using namespace std;
+
+void func_init_text(int textRow, int textCol, vector<string> *text) {
+	string temp;
+	for(int i=0; i<textRow; i++) {
+		temp = "";
+		for(int j=0; j<textCol; j++) {
+			temp += " ";
+		}
+		(*text).push_back(temp);
+	}
+}
+
+string func_gray2text(int p) {
+	string str;
 	if (p > 250) {
 		str = "  ";
 	} else if (p > 200) {
@@ -18,15 +33,4 @@ std::string graypix(int p) {
 		str = "MM";
 	}
 	return str;
-}
-
-std::string func_init_pixel(int txtW, int txtH) {
-	std::string outTxt = "";
-	for(int i=0; i<txtH; i++) {
-		for(int j=0; j<txtW; j++) {
-			outTxt += " ";
-		}
-		outTxt += "\n";
-	}
-	return outTxt;
 }

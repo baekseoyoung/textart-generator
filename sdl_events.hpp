@@ -3,35 +3,40 @@
 
 using namespace std;
 
-string func_sdl_keyboard_event(SDL_Event e, string inText)
+enum MouseState
 {
-	if (SDL_GetModState() & KMOD_CTRL) {
+	MOUSE_ON_EDITBOX,
+	MOUSE_ON_SIDEBOX,
+	MOUSE_ON_DOWNBOX
+};
+
+void func_keyboard_event(SDL_Event e) {
+	if(SDL_GetModState() & KMOD_CTRL) { //=== ctrl
 		switch(e.key.keysym.sym) {
-			case SDLK_s: //===ctrl+s
-				cout<<"saved!"<<endl;
+			case SDLK_s:
+				cout<<"saved"<<endl;
 				break;
-			}
+		}
 	} else {
-		switch(e.key.keysym.sym) {
+		switch(e.key.keysym.sym) { //=== text input related
 			case SDLK_BACKSPACE:
-				if(inText.length() > 0) {
-					if (inText.back() & 0x80) { //===if korean
-						inText.pop_back();
-						inText.pop_back();
-					}
-					inText.pop_back();
-				}
+				cout<<"delete txt"<<endl;
 				break;
 			case SDLK_RETURN:
-			inText += "\n";
-			break;
-			//default:
+				cout<<"line break"<<endl;
+				break;
 		}
 	}
-	return inText;
 }
 
-void func_sdl_mouse_event(SDL_Event e)
-{
-
+void func_mouse_event(SDL_Event e) {
+	int x;
+	int y;
+	SDL_GetMouseState(&x, &y);
+	if (e.type == SDL_MOUSEBUTTONDOWN) {
+		cout << x << " " << y << " down ";
+	}
+	if (e.type == SDL_MOUSEBUTTONUP) {
+		cout << x << " " << y << " up ";
+	}
 }

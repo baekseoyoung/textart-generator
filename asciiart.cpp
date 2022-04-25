@@ -1,37 +1,48 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <vector>
+#include <ctime>
 
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/core/core.hpp>
-//#include <gtk/gtk.h>
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
+#include <windows.h>
+
+#include "sdl_boxes.hpp"
+#include "sdl_events.hpp"
+#include "win_filemanage.hpp"
 
 #include "asciicalculate.hpp"
-#include "ascii_sty.h"
-#include "sdl_events.hpp"
 
 using namespace std;
 
 int main(int argc, char **argv) 
 {
-	//=== get styles
-	MyStyle sty;
+	//=== set variables
+	int winW = 700;
+	int winH = 500;
+	int sideSize = 200;
+	int downSize = 200;
+	int scrollbar = 10;
+	int editc[4] = {0, 0, winW-sideSize-scrollbar, winH-downSize-scrollbar};
+	int sidec[4] = {winW-sideSize, 0, sideSize, winH};
+	int downc[4] = {0, winH-downSize, winW-sideSize, downSize};
 
-	//=== sdl
+	//=== sdl window
 	SDL_Init(SDL_INIT_VIDEO);
 	SDL_Window *window;
 	SDL_Surface *screen;
 	SDL_Renderer *renderer;
 	SDL_Texture *texture;
-	SDL_Rect mainrect = {0, 0, sty.winW, sty.winH};
+	SDL_Rect mainrect = {0, 0, winW, winH};
 
 	window = SDL_CreateWindow(
 		"untitled",
         SDL_WINDOWPOS_UNDEFINED,
         SDL_WINDOWPOS_UNDEFINED,
-        sty.winW, sty.winH,
+        winW, winH,
         SDL_WINDOW_RESIZABLE
 	);
 	if(window == NULL) {
@@ -43,25 +54,31 @@ int main(int argc, char **argv)
 	//=== sdl ttf
 	TTF_Init();
 	TTF_Font *font;
-	font = TTF_OpenFont(sty.fontPath.c_str(), sty.fontSize);
+	string fontPath = "assets/unifont-14.0.02.ttf";
+	int fontSize = 20;
+	font = TTF_OpenFont(fontPath.c_str(), fontSize);
 
-	//=== vars & make init screens
-	SDL_Surface *editSurface;
-	SDL_Rect editBox = {sty.editc[0], sty.editc[1], sty.editc[2], sty.editc[3]};
-	SDL_Rect outerEditRect = {sty.editc[0]+sty.border, sty.editc[1]+sty.border, sty.editc[2]-2*sty.border, sty.editc[3]-2*sty.border};
-	SDL_Rect editRect = {sty.editc[0]+2*sty.border, sty.editc[1]+2*sty.border, sty.editc[2]-4*sty.border, sty.editc[3]-4*sty.border};
-	SDL_Surface *sideSurface;
-	SDL_Rect sideBox = {sty.sidec[0], sty.sidec[1], sty.sidec[2], sty.sidec[3]};
-	SDL_Rect outerSideRect = {sty.sidec[0]+sty.border, sty.sidec[1]+sty.border, sty.sidec[2]-2*sty.border, sty.sidec[3]-2*sty.border};
-	SDL_Rect sideRect = {sty.sidec[0]+2*sty.border, sty.sidec[1]+2*sty.border, sty.sidec[2]-4*sty.border, sty.sidec[3]-4*sty.border};
-	SDL_Surface *downSurface;
-	SDL_Rect downBox = {sty.downc[0], sty.downc[1], sty.downc[2], sty.downc[3]};
-	SDL_Rect outerDownRect = {sty.downc[0]+sty.border, sty.downc[1]+sty.border, sty.downc[2]-2*sty.border, sty.downc[3]-2*sty.border};
-	SDL_Rect downRect = {sty.downc[0]+2*sty.border, sty.downc[1]+2*sty.border, sty.downc[2]-4*sty.border, sty.downc[3]-4*sty.border};
-	SDL_Surface *tempSurface;
-	SDL_Rect tempRect;
-	string screenText = "";//= func_init_pixel(sty.txtW, sty.txtH);
+	//=== set boxes
+	EditBox editbox;
+	SideBox sidebox;
+	DownBox downbox;
+	editbox.setBoxSize(editc);
+	sidebox.setBoxSize(sidec);
+	downbox.setBoxSize(downc);
+
+	//=== text & cursor
+	vector<string> text;
+	int textRow = 10;
+	int textCol = 10;
+	func_init_text(textRow, textCol, &text);
 	SDL_StartTextInput();
+
+	time_t timeprv, timenow;
+	float timecha;
+	timeprv = time(NULL);
+	bool timeFlag = true;
+
+
 
 	//=== main loop
 	bool quit = false;
@@ -75,47 +92,127 @@ int main(int argc, char **argv)
 				quit = true;
 			}
 			else if(e.type == SDL_KEYDOWN) {
-				screenText = func_sdl_keyboard_event(e, screenText);
+				//=== other keyboard events
+				timeprv = time(NULL); //=== visible cursor during keydown
+				// func_keyboard_event(e);
+				if(SDL_GetModState() & KMOD_CTRL) { //=== ctrl
+					switch(e.key.keysym.sym) {
+						case SDLK_s:
+							func_write_file(&text);
+							break;
+						case SDLK_z:
+							cout<<"ctrlz"<<endl;
+							break;
+						case SDLK_o:
+							func_win_open_dialog(&text);
+							textRow = sizeof(text);
+							textCol = sizeof(text[0]);
+							editbox.curRow = 0;
+							editbox.curCol = 0;
+							break;
+					}
+				} else {
+					switch(e.key.keysym.sym) { //=== text input related
+						case SDLK_BACKSPACE:
+							text[editbox.curRow][editbox.curCol] = ' ';
+							break;
+						case SDLK_RETURN:
+							cout<<"line break"<<endl;
+							break;
+						case SDLK_UP:
+							if (editbox.curRow > 0) {
+								editbox.curRow -= 1;
+							}
+							break;
+						case SDLK_DOWN:
+							if (editbox.curRow+1 < textRow) {
+								editbox.curRow += 1;
+							}
+							break;
+						case SDLK_LEFT:
+							if (editbox.curCol > 0) {
+								editbox.curCol -= 1;
+							}
+							break;
+						case SDLK_RIGHT:
+							if (editbox.curCol+1 < textCol) {
+								editbox.curCol += 1;
+							}
+							break;
+					}
+				}
 			}
 			else if(e.type == SDL_TEXTINPUT) {
-				screenText += e.text.text;
+				//=== editbox text input
+				text[editbox.curRow][editbox.curCol] = (e.text.text)[0];
+				if (editbox.curCol+1 >= textCol) {
+					if (editbox.curRow+1 >= textRow) {
+						//
+					} else {
+						editbox.curRow += 1;
+						editbox.curCol = 0;
+					}
+				} else {
+					editbox.curCol += 1;
+				}
 			}
 			else if(e.type == SDL_WINDOWEVENT) {
-				/*if (e.window.event == SDL_WINDOWEVENT_SIZE_CHANGED) {
-					sty.func_window_update(window);
-				}*/
+				//=== window resize
+				if (e.window.event == SDL_WINDOWEVENT_SIZE_CHANGED) {
+					SDL_GetWindowSize(window, &winW, &winH);
+					mainrect.w = winW, mainrect.h = winH;
+					editc[0] = 0, editc[1] = 0, editc[2] = winW-sideSize-scrollbar, editc[3] = winH-downSize-scrollbar;
+					sidec[0] = winW-sideSize, sidec[1] = 0, sidec[2] = sideSize, sidec[3] = winH;
+					downc[0] = 0, downc[1] = winH-downSize, downc[2] = winW-sideSize, downc[3] = downSize;
+					editbox.setBoxSize(editc);
+					sidebox.setBoxSize(sidec);
+					downbox.setBoxSize(downc);
+				}
+			}
+			else if(e.type == SDL_MOUSEBUTTONDOWN || e.type == SDL_MOUSEBUTTONUP) {
+				//=== mouse event on each surface
+				int x, y;
+				SDL_GetMouseState(&x, &y);
+				if(x>editc[0] && x<editc[0]+editc[2] && y>editc[1] && y<editc[1]+editc[3]) { // on green
+					cout<<"green"<<endl;
+				}
+				if (x>sidec[0] && x<sidec[0]+sidec[2] && y>sidec[1] && y<sidec[1]+sidec[3]) { // on red
+					cout<<"red"<<endl;
+				}
+				if (x>downc[0] && x<downc[0]+downc[2] && y>downc[1] && y<downc[1]+downc[3]) { // on blue
+					cout<<"blue"<<endl;
+				}
 			}
 		}
 		//=== clear & render screen, render texture
 		SDL_RenderClear(renderer);
-		screen = SDL_CreateRGBSurface(0, sty.winW,sty.winH, 32, 0,0,0,0);
+		screen = SDL_CreateRGBSurface(0, winW,winH, 32, 0,0,0,0);
 		SDL_FillRect(screen, &mainrect, SDL_MapRGBA(screen->format,0,0,0,255));
-		SDL_FillRect(screen, &editBox, SDL_MapRGBA(screen->format,0,150,0,255));
-		SDL_FillRect(screen, &sideBox, SDL_MapRGBA(screen->format,150,0,0,255));
-		SDL_FillRect(screen, &downBox, SDL_MapRGBA(screen->format,0,0,150,255));
-		SDL_FillRect(screen, &outerEditRect, SDL_MapRGBA(screen->format,0,0,0,255));
-		SDL_FillRect(screen, &outerSideRect, SDL_MapRGBA(screen->format,0,0,0,255));
-		SDL_FillRect(screen, &outerDownRect, SDL_MapRGBA(screen->format,0,0,0,255));
-		//=== surfaces all together
-			//=== edit surface
-			editSurface = SDL_CreateRGBSurface(0, sty.winW,sty.winH, 32, 0,0,0,0);
-			SDL_FillRect(editSurface, &editRect, SDL_MapRGBA(editSurface->format,0,50,0,255));
-				tempSurface = TTF_RenderUTF8_Blended(font, screenText.c_str(), sty.fontColor);
-				tempRect = {0, 0, sty.editc[2]-4*sty.border, sty.editc[3]-4*sty.border};
-				SDL_BlitSurface(tempSurface, &tempRect, editSurface, &editRect);
-				SDL_FreeSurface(tempSurface);
-			SDL_BlitSurface(editSurface, &editRect, screen, &editRect);
-			SDL_FreeSurface(editSurface);
-			//=== side surface
-			sideSurface = SDL_CreateRGBSurface(0, sty.winW,sty.winH, 32, 0,0,0,0);
-			SDL_FillRect(sideSurface, &sideRect, SDL_MapRGBA(sideSurface->format,50,0,0,255));
-			SDL_BlitSurface(sideSurface, &sideRect, screen, &sideRect);
-			SDL_FreeSurface(sideSurface);
-			//=== down surface
-			downSurface = SDL_CreateRGBSurface(0, sty.winW,sty.winH, 32, 0,0,0,0);
-			SDL_FillRect(downSurface, &downRect, SDL_MapRGBA(downSurface->format,0,0,50,255));
-			SDL_BlitSurface(downSurface, &downRect, screen, &downRect);
-			SDL_FreeSurface(downSurface);
+		//=== draw each box on screen
+		editbox.showBox(screen, SDL_MapRGBA(screen->format,0,150,0,255));
+		sidebox.showBox(screen, SDL_MapRGBA(screen->format,150,0,0,255));
+		downbox.showBox(screen, SDL_MapRGBA(screen->format,0,0,150,255));
+
+		//=== show surf of each box, blit to screen, free surf.
+		timenow = time(NULL);
+		timecha = (float)(timenow-timeprv);
+		if(timecha>=0 && timecha<1) {
+			timeFlag = true;
+		} else if(timecha>=1 && timecha<2) {
+			timeFlag = false;
+		} else {
+			timeprv = time(NULL);
+		}
+		editbox.showSurf(winW, winH, text, font, timeFlag);
+		SDL_BlitSurface(editbox.surf, &editbox.rect, screen, &editbox.inner);
+		SDL_FreeSurface(editbox.surf);
+		sidebox.showSurf(winW, winH, font);
+		SDL_BlitSurface(sidebox.surf, &sidebox.rect, screen, &sidebox.inner);
+		SDL_FreeSurface(sidebox.surf);
+		downbox.showSurf(winW, winH, font);
+		SDL_BlitSurface(downbox.surf, &downbox.rect, screen, &downbox.inner);
+		SDL_FreeSurface(downbox.surf);
+
 		//=== render the texture
 		texture = SDL_CreateTextureFromSurface(renderer, screen);
 		SDL_RenderCopy(renderer, texture, NULL, &mainrect);
@@ -133,28 +230,6 @@ int main(int argc, char **argv)
 	SDL_DestroyRenderer(renderer);
 	SDL_DestroyWindow(window);
 	SDL_Quit();
-
-	cv::Mat image = cv::imread("./ball.png");
-	cv::Vec3b buf;
-
-	ofstream outfile("./outtext.txt");
-	if (!outfile) {
-		return -1;
-	}
-
-	int p;
-	for(int i=0; i<image.rows; i++) {
-		for (int j=0; j<image.cols; j++) {
-			buf = image.at<cv::Vec3b>(i,j);
-			p = 0.299*(int)buf[2] + 0.587*(int)buf[1] + 0.114*(int)buf[0];
-			string str = graypix(p);
-			outfile << str;
-			cout << str;
-		}
-		outfile << std::endl;
-		cout << std::endl;
-	}
-	outfile.close();
 
 	return 0;
 }
