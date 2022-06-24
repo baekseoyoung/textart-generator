@@ -19,7 +19,6 @@ void func_read_file(char* path, vector<string> *text) {
 		// cout<<"text!"<<endl;
 		ifstream infile(filePath);
 		string line;
-		int i = 0;
 		(*text).clear();
 		while(getline(infile, line)) {
 			(*text).push_back(line);
