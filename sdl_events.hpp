@@ -3,12 +3,12 @@
 
 using namespace std;
 
-enum MouseState
-{
-	MOUSE_ON_EDITBOX,
-	MOUSE_ON_SIDEBOX,
-	MOUSE_ON_DOWNBOX
-};
+// enum MouseState
+// {
+// 	MOUSE_ON_EDITBOX,
+// 	MOUSE_ON_SIDEBOX,
+// 	MOUSE_ON_DOWNBOX
+// };
 
 void func_keyboard_event(SDL_Event e) {
 	if(SDL_GetModState() & KMOD_CTRL) { //=== ctrl

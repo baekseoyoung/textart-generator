@@ -24,17 +24,10 @@ int main(int argc, char **argv)
 	//=== sdl window
 	SDL_Init(SDL_INIT_VIDEO);
 	SDL_Window *window;
-	// SDL_Surface *screen;
 	SDL_Renderer *renderer;
-	// SDL_Texture *texture;
 	int winW = 700;
 	int winH = 500;
 	// SDL_Rect mainRect = {0,0,winW,winH};
-
-	//=== set variables
-	// int editc[4] = {0, 0, winW-sideSize-scrollbar, winH-downSize-scrollbar};
-	// int sidec[4] = {winW-sideSize, 0, sideSize, winH};
-	// int downc[4] = {0, winH-downSize, winW-sideSize, downSize};
 
 	window = SDL_CreateWindow(
 		"ASCII Art Editor",
@@ -52,7 +45,7 @@ int main(int argc, char **argv)
 	//=== sdl ttf
 	TTF_Init();
 	TTF_Font *font;
-	string fontPath = "assets/Ubuntu_Mono/UbuntuMono-Regular.ttf"; //"assets/unifont-14.0.02.ttf";
+	string fontPath = "assets/Ubuntu_Mono/UbuntuMono-Regular.ttf";
 	int fontSize = 20;
 	font = TTF_OpenFont(fontPath.c_str(), fontSize);
 
@@ -91,6 +84,10 @@ int main(int argc, char **argv)
 	timeprv = time(NULL);
 	bool timeFlag = true;
 
+	//=== mouse setup
+	// MouseState mouse;
+	Mouse mouse;
+
 
 
 	//=== main loop
@@ -98,6 +95,8 @@ int main(int argc, char **argv)
 	SDL_Event e;
 	while(!quit)
 	{	
+		//=== reset variables
+		mouse.click = false;
 		//=== event handles
 		while(SDL_PollEvent(&e) != 0)
 		{
@@ -107,7 +106,6 @@ int main(int argc, char **argv)
 			else if(e.type == SDL_KEYDOWN) {
 				//=== other keyboard events
 				timeprv = time(NULL); //=== visible cursor during keydown
-				// func_keyboard_event(e);
 				if(SDL_GetModState() & KMOD_CTRL) { //=== ctrl
 					switch(e.key.keysym.sym) {
 						case SDLK_s:
@@ -124,8 +122,8 @@ int main(int argc, char **argv)
 							// editbox.curCol = 0;
 							break;
 					}
-				} else {
-					switch(e.key.keysym.sym) { //=== text input related
+				} else { //=== text input related
+					switch(e.key.keysym.sym) {
 						case SDLK_BACKSPACE:
 							textArt.text[textArt.rowCur][textArt.colCur] = ' ';
 							break;
@@ -185,19 +183,32 @@ int main(int argc, char **argv)
 					downBox.changeRectSizes(downRect);
 				}
 			}
-			else if(e.type == SDL_MOUSEBUTTONDOWN || e.type == SDL_MOUSEBUTTONUP) {
+			else if(e.type == SDL_MOUSEMOTION || e.type == SDL_MOUSEBUTTONDOWN || e.type == SDL_MOUSEBUTTONUP) {
 				//=== mouse event on each surface
-				int x, y;
-				SDL_GetMouseState(&x, &y);
-				if(x>editRect.x && x<editRect.x+editRect.w && y>editRect.y && y<editRect.y+editRect.h) { // on green
-					cout<<"green"<<endl;
+				SDL_GetMouseState(&mouse.x, &mouse.y);
+				if(e.type == SDL_MOUSEBUTTONDOWN) {
+					mouse.press = true;
 				}
-				if (x>sideRect.x && x<sideRect.x+sideRect.w && y>sideRect.y && y<sideRect.y+sideRect.h) { // on red
-					cout<<"red"<<endl;
+				if(e.type == SDL_MOUSEBUTTONUP) {
+					if(mouse.press == true) {
+						mouse.click = true;
+					}
+					mouse.press = false;
 				}
-				if (x>downRect.x && x<downRect.x+downRect.w && y>downRect.y && y<downRect.y+downRect.h) { // on blue
-					cout<<"blue"<<endl;
-				}
+				// if(mx>editRect.x && mx<editRect.x+editRect.w && my>editRect.y && my<editRect.y+editRect.h) { // on green
+				// 	// cout<<"green"<<endl;
+				// 	mouse = MOUSE_EDITBOX_CLICK;
+				// }
+				// if (mx>sideRect.x && mx<sideRect.x+sideRect.w && my>sideRect.y && my<sideRect.y+sideRect.h) { // on red
+				// 	// cout<<"red"<<endl;
+				// 	mouse = MOUSE_SIDEBOX_CLICK;
+				// }
+				// if (mx>downRect.x && mx<downRect.x+downRect.w && my>downRect.y && my<downRect.y+downRect.h) { // on blue
+				// 	// cout<<"blue"<<endl;
+				// 	mouse = MOUSE_DOWNBOX_CLICK;
+				// }
+				// cout<<mouse<<endl;
+				// cout<<mx<<" "<<my<<endl;
 			}
 		}
 		//=== clear & render texture
@@ -216,7 +227,6 @@ int main(int argc, char **argv)
 		downBox.setSurf_BoxBorder(downRect, SDL_MapRGBA(downBox.surf->format,0,0,150,255));
 
 		editBox.setSurf_Editor(textArt, font, timeFlag);
-		sideBox.setSurf_Menu(font, renderer);
 
 		//=== into texture for each element
 		editTexture = SDL_CreateTextureFromSurface(renderer, editBox.surf);
@@ -226,6 +236,8 @@ int main(int argc, char **argv)
 		SDL_RenderCopy(renderer, editTexture, NULL, &editRect);
 		SDL_RenderCopy(renderer, sideTexture, NULL, &sideRect);
 		SDL_RenderCopy(renderer, downTexture, NULL, &downRect);
+
+		sideBox.setSurf_Menu(font, renderer, sideRect, mouse);
 
 		SDL_FreeSurface(editBox.surf);
 		SDL_FreeSurface(sideBox.surf);
@@ -244,25 +256,10 @@ int main(int argc, char **argv)
 		} else {
 			timeprv = time(NULL);
 		}
-		//=== show surf of each box, blit to screen, free surf.
-		// editbox.showSurf(winW, winH, text, font, timeFlag);
-		// SDL_BlitSurface(editbox.surf, &editbox.rect, screen, &editbox.inner);
-		// SDL_FreeSurface(editbox.surf);
-		// sidebox.showSurf(winW, winH, font);
-		// SDL_BlitSurface(sidebox.surf, &sidebox.rect, screen, &sidebox.inner);
-		// SDL_FreeSurface(sidebox.surf);
-		// downbox.showSurf(winW, winH, font);
-		// SDL_BlitSurface(downbox.surf, &downbox.rect, screen, &downbox.inner);
 
 		//=== render the texture
-		// texture = SDL_CreateTextureFromSurface(renderer, screen);
-		// SDL_RenderCopy(renderer, texture, NULL, &mainrect);
 		SDL_RenderPresent(renderer);
-		//=== free them
-		// SDL_FreeSurface(screen);
-		// SDL_DestroyTexture(texture);
 	}
-	//SDL_UpdateWindowSurface(window);
 
 	//=== quit
 	IMG_Quit();

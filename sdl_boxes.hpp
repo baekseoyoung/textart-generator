@@ -8,6 +8,16 @@
 
 using namespace std;
 
+enum MouseState
+{
+	MOUSE_EDITBOX_CLICK,
+	MOUSE_SIDEBOX_CLICK,
+	MOUSE_DOWNBOX_CLICK,
+	MOUSE_EDITBOX_HOVER,
+	MOUSE_SIDEBOX_HOVER,
+	MOUSE_DOWNBOX_HOVER
+};
+
 //=== text class ===
 class TextArt
 {
@@ -32,40 +42,98 @@ class TextArt
 };
 
 //=== element classes ===
+class Mouse
+{
+	public:
+		int x;
+		int y;
+		bool press = false;
+		bool click = false;
+		int onBox = 0; //= 0, 1, 2, 3
+};
 
 class Button
 {
 	public:
+		SDL_Texture *texture;
+		SDL_Rect rect = {0,0,0,0};
 		SDL_Surface *surf;
+
 		SDL_Rect margin = {0,0,0,0};
 		SDL_Rect border = {0,0,0,0};
 		SDL_Rect padding = {0,0,0,0};
 		SDL_Rect content = {0,0,0,0};
-
-		string text;
-		SDL_Color borderColor = {255,255,255,0xFF};
-
 		int marginSize = 5;
-		int borderSize = 5;
+		int borderSize = 3;
 		int paddingSize = 5;
 
-		Button(string t, Uint32 pixel, int marginS, int borderS, int paddingS) {
-			text = t;
-			// if(pixel != NULL) {
-			// 	borderColor = pixel;
-			// }
-			// if(marginS != NULL) {
-			// 	marginSize = marginS;
-			// }
-			// if(borderS != NULL) {
-			// 	borderSize = borderS;
-			// }
-			// if(paddingS != NULL) {
-			// 	paddingSize = paddingS;
-			// }
+		string text;
+		int fontSize = 10;
+		SDL_Color fontColor = {255,255,255,0xFF};
+		SDL_Color backColor = {0,0,0,0};
+
+		Button() : text("") {}
+		Button(string t) : text(t) {}
+		void setBtn_location(int x, int y) {
+			rect.x = x, rect.y = y;
 		}
-		void showButton() {}
-		void onClick() {}
+		void setBtn_draw(SDL_Renderer *renderer, TTF_Font *font) {
+			//=== setup margin, border, padding Rect.
+			SDL_Surface *tsurf = TTF_RenderUTF8_Blended(font, text.c_str(), fontColor);
+			SDL_Surface *margSurf;
+			SDL_Surface *bordSurf;
+			SDL_Surface *paddSurf;
+			margin.w = tsurf->w + 2*marginSize + 2*borderSize + 2*paddingSize;
+			margin.h = tsurf->h + 2*marginSize + 2*borderSize + 2*paddingSize;
+			border.x = marginSize, border.y = marginSize;
+			border.w = tsurf->w + 2*marginSize + 2*borderSize;
+			border.h = tsurf->h + 2*marginSize + 2*borderSize;
+			padding.x = marginSize+borderSize, padding.y = marginSize+borderSize;
+			padding.w = tsurf->w + 2*marginSize;
+			padding.h = tsurf->h + 2*marginSize;
+			content.x = marginSize+borderSize+paddingSize;
+			content.y = marginSize+borderSize+paddingSize;
+			content.w = tsurf->w, content.h = tsurf->h;
+			//=== set button surf
+			surf = SDL_CreateRGBSurface(0, margin.w,margin.h, 32, 0,0,0,0);
+			//=== set button rect
+			rect.w = surf->w, rect.h = surf->h;
+			//=== blit button surfs
+			margSurf = SDL_CreateRGBSurface(0, margin.w,margin.h, 32, 0,0,0,0);
+			bordSurf = SDL_CreateRGBSurface(0, border.w,border.h, 32, 0,0,0,0);
+			paddSurf = SDL_CreateRGBSurface(0, padding.w,padding.h, 32, 0,0,0,0);
+			SDL_FillRect(bordSurf, NULL, SDL_MapRGBA(bordSurf->format,255,255,255,255));
+			SDL_FillRect(paddSurf, NULL, SDL_MapRGBA(paddSurf->format,backColor.r,backColor.g,backColor.b,backColor.a));
+			SDL_BlitSurface(margSurf, NULL, surf, &margin);
+			SDL_BlitSurface(bordSurf, NULL, surf, &border);
+			SDL_BlitSurface(paddSurf, NULL, surf, &padding);
+			SDL_BlitSurface(tsurf, NULL, surf, &content);
+
+			//=== make it into texture
+			texture = SDL_CreateTextureFromSurface(renderer, surf);
+			SDL_RenderCopy(renderer, texture, NULL, &rect);
+			//=== free surfs, texture
+			SDL_FreeSurface(margSurf);
+			SDL_FreeSurface(bordSurf);
+			SDL_FreeSurface(paddSurf);
+			SDL_FreeSurface(tsurf);
+			SDL_FreeSurface(surf);
+			SDL_DestroyTexture(texture);
+		}
+		void onInteract(Mouse m) {
+			if(m.x>rect.x+marginSize && m.x<rect.x+border.w && m.y>rect.y+marginSize && m.y<rect.y+rect.h) {
+				if(m.press == false) {
+					backColor = {100,100,100,255};
+				} else { //= if m.press == true
+					backColor = {150,150,150,255};
+				}
+			} else {
+				if(m.click) {
+					cout<<"click!"<<endl;
+				}
+				backColor = {0,0,0,255};
+			}
+		}
 		~Button() {}
 };
 
@@ -83,6 +151,14 @@ class ScrollBar
 			// 	Button bttn2("v");
 			// }
 		}
+};
+
+class PopUp
+{
+	public:
+		SDL_Texture *texture;
+		SDL_Surface *surf;
+		SDL_Rect rect = {0,0,0,0};
 };
 
 //=== box classes ===
@@ -162,33 +238,36 @@ class SideBox : public Box
 {
 	public:
 		//=== font
+		TTF_Font *font;
 		SDL_Color fontColor = {255,255,255,0xFF};
 		int fontSize = 15;
 
 		//=== buttons
-		// SDL_Surface *saveBtnSurf;
-		SDL_Rect saveRect = {0,0,0,0};
-		// SDL_Surface *newBtnSurf;
-		SDL_Rect newRect = {0,0,0,0};
+		Button saveBtn{"Save"};
+		Button newBtn{"New"};
 
-		void setSurf_Menu(TTF_Font *font, SDL_Renderer *renderer) {
+		void setSurf_Menu(TTF_Font *font, SDL_Renderer *renderer, SDL_Rect rect, Mouse mouse) {
 			// SDL_Surface *tempInnerSurf;
 			// SDL_Surface *tempSurf;
 			// SDL_Rect tempRect = {0,0,0,0};
-			//=== button display
-			/*SDL_Surface *image = IMG_Load("ball.png");
-			if (!image) {
-				cout<<"not loaded"<<endl;
-			}
-			SDL_Texture *sometext = SDL_CreateTextureFromSurface(renderer, image);
-			SDL_FreeSurface(image);
-			SDL_RenderCopy(renderer, sometext, NULL, &inner);*/
+			rect.x += border;
+			rect.y += border;
+			//=== button setup
+			saveBtn.setBtn_location(rect.x, rect.y);
+			newBtn.setBtn_location(rect.x+saveBtn.margin.w, rect.y);
+			//===button mouse hover/click setup
+			saveBtn.onInteract(mouse);
+			newBtn.onInteract(mouse);
+			//===button display
+			saveBtn.setBtn_draw(renderer, font);
+			newBtn.setBtn_draw(renderer, font);
 
-			SDL_Texture *sometext = IMG_LoadTexture(renderer, "ball.png");
-			int w, h;
-			SDL_QueryTexture(sometext, NULL, NULL, &w,&h);
-			SDL_Rect somerect = {0,0,w,h};
-			SDL_RenderCopy(renderer, sometext, NULL, &somerect);
+			//=== img display
+			// SDL_Texture *sometext = IMG_LoadTexture(renderer, "ball.png");
+			// int w, h;
+			// SDL_QueryTexture(sometext, NULL, NULL, &w,&h);
+			// SDL_Rect somerect = {rect.x,rect.y,w,h};
+			// SDL_RenderCopy(renderer, sometext, NULL, &somerect);
 		}
 		~SideBox() {}
 };
