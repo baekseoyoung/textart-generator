@@ -12,7 +12,7 @@
 #include <windows.h>
 
 #include "sdl_boxes.hpp"
-#include "sdl_events.hpp"
+// #include "sdl_events.hpp"
 #include "win_filemanage.hpp"
 
 #include "asciicalculate.hpp"
@@ -65,8 +65,8 @@ int main(int argc, char **argv)
 	SDL_Rect editRect = {0, 0, winW-sideSize-scrollbarSize, winH-downSize-scrollbarSize};
 	SDL_Rect sideRect = {winW-sideSize, 0, sideSize, winH};
 	SDL_Rect downRect = {0, winH-downSize, winW-sideSize, downSize};
-	// SDL_Rect scrollbar1Rect = {editRect.w, 0, scrollbarSize, editRect.h};
-	// SDL_Rect scrollbar2Rect = {0, editRect.h, editRect.w, scrollbarSize};
+	SDL_Rect scrollbar1Rect = {editRect.w, 0, scrollbarSize, editRect.h}; //=vert
+	SDL_Rect scrollbar2Rect = {0, editRect.h, editRect.w, scrollbarSize}; //=hori
 
 	EditBox editBox;
 	SideBox sideBox;
@@ -74,6 +74,9 @@ int main(int argc, char **argv)
 	editBox.changeRectSizes(editRect);
 	sideBox.changeRectSizes(sideRect);
 	downBox.changeRectSizes(downRect);
+
+	ScrollBar scroll1{"vert"};
+	ScrollBar scroll2{"hori"};
 
 	//=== textart obj & cursor timing
 	TextArt textArt(10, 10);
@@ -175,8 +178,8 @@ int main(int argc, char **argv)
 					editRect.w = winW-sideSize-scrollbarSize, editRect.h = winH-downSize-scrollbarSize;
 					sideRect.x = winW-sideSize, sideRect.w = sideSize, sideRect.h = winH;
 					downRect.y = winH-downSize, downRect.w = winW-sideSize, downRect.h = downSize;
-					// scrollbar1Rect.x = editRect.w, scrollbar1Rect.h = editRect.h;
-					// scrollbar2Rect.y = editRect.h, scrollbar2Rect.w = editRect.w;
+					scrollbar1Rect.x = editRect.w, scrollbar1Rect.h = editRect.h;
+					scrollbar2Rect.y = editRect.h, scrollbar2Rect.w = editRect.w;
 
 					editBox.changeRectSizes(editRect);
 					sideBox.changeRectSizes(sideRect);
@@ -226,8 +229,6 @@ int main(int argc, char **argv)
 		sideBox.setSurf_BoxBorder(sideRect, SDL_MapRGBA(sideBox.surf->format,150,0,0,255));
 		downBox.setSurf_BoxBorder(downRect, SDL_MapRGBA(downBox.surf->format,0,0,150,255));
 
-		editBox.setSurf_Editor(textArt, font, timeFlag);
-
 		//=== into texture for each element
 		editTexture = SDL_CreateTextureFromSurface(renderer, editBox.surf);
 		sideTexture = SDL_CreateTextureFromSurface(renderer, sideBox.surf);
@@ -237,7 +238,11 @@ int main(int argc, char **argv)
 		SDL_RenderCopy(renderer, sideTexture, NULL, &sideRect);
 		SDL_RenderCopy(renderer, downTexture, NULL, &downRect);
 
+		editBox.onMouseEvent(mouse, &textArt, font);
+		editBox.setSurf_Editor(renderer, textArt, font, timeFlag, mouse);
 		sideBox.setSurf_Menu(font, renderer, sideRect, mouse);
+		scroll1.setScroll_draw(renderer, font, scrollbar1Rect, mouse);
+		scroll2.setScroll_draw(renderer, font, scrollbar2Rect, mouse);
 
 		SDL_FreeSurface(editBox.surf);
 		SDL_FreeSurface(sideBox.surf);

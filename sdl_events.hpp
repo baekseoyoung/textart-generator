@@ -40,3 +40,14 @@ void func_mouse_event(SDL_Event e) {
 		cout << x << " " << y << " up ";
 	}
 }
+
+void func_btn_save(bool click) {
+	if(click){
+		cout<<"click save"<<endl;
+	}
+}
+void func_btn_new(bool click) {
+	if(click){
+		cout<<"click new"<<endl;
+	}
+}
