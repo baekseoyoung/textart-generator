@@ -21,13 +21,12 @@ using namespace std;
 
 int main(int argc, char **argv) 
 {
-	//=== sdl window
+	//=== sdl window & renderer
 	SDL_Init(SDL_INIT_VIDEO);
 	SDL_Window *window;
 	SDL_Renderer *renderer;
 	int winW = 700;
 	int winH = 500;
-	// SDL_Rect mainRect = {0,0,winW,winH};
 
 	window = SDL_CreateWindow(
 		"ASCII Art Editor",
@@ -52,34 +51,28 @@ int main(int argc, char **argv)
 	//=== sdl image
 	IMG_Init(IMG_INIT_JPG|IMG_INIT_PNG);
 
-	//=== set textures, rect, surf
-	SDL_Texture *editTexture;
-	SDL_Texture *sideTexture;
-	SDL_Texture *downTexture;
-	// SDL_Texture *scrollbar1Texture;
-	// SDL_Texture *scrollbar2Texture;
 
+
+	//=== set basic window's var, box, elements.
 	int sideSize = 200;
 	int downSize = 200;
-	int scrollbarSize = 20;
-	SDL_Rect editRect = {0, 0, winW-sideSize-scrollbarSize, winH-downSize-scrollbarSize};
-	SDL_Rect sideRect = {winW-sideSize, 0, sideSize, winH};
-	SDL_Rect downRect = {0, winH-downSize, winW-sideSize, downSize};
-	SDL_Rect scrollbar1Rect = {editRect.w, 0, scrollbarSize, editRect.h}; //=vert
-	SDL_Rect scrollbar2Rect = {0, editRect.h, editRect.w, scrollbarSize}; //=hori
 
 	EditBox editBox;
 	SideBox sideBox;
 	DownBox downBox;
-	editBox.changeRectSizes(editRect);
-	sideBox.changeRectSizes(sideRect);
-	downBox.changeRectSizes(downRect);
+	editBox.resizeBox(0, 0, winW-sideSize, winH-downSize);
+	sideBox.resizeBox(winW-sideSize, 0, sideSize, winH);
+	downBox.resizeBox(0, winH-downSize, winW-sideSize, downSize);
+	editBox.recolorBox(0,150,0,255);
+	sideBox.recolorBox(150,0,0,255);
+	downBox.recolorBox(0,0,150,255);
 
-	ScrollBar scroll1{"vert"};
-	ScrollBar scroll2{"hori"};
+	//temp tab
+	sideBox.addTab("File");
+	sideBox.addTab("Edit");
 
-	//=== textart obj & cursor timing
-	TextArt textArt(10, 10);
+	//=== init: text art obj, cursor timing, mouse.
+	TextArt textArt(10, 20);
 	SDL_StartTextInput();
 
 	time_t timeprv, timenow;
@@ -87,8 +80,6 @@ int main(int argc, char **argv)
 	timeprv = time(NULL);
 	bool timeFlag = true;
 
-	//=== mouse setup
-	// MouseState mouse;
 	Mouse mouse;
 
 
@@ -174,16 +165,9 @@ int main(int argc, char **argv)
 				//=== on window resize
 				if (e.window.event == SDL_WINDOWEVENT_SIZE_CHANGED) {
 					SDL_GetWindowSize(window, &winW, &winH);
-
-					editRect.w = winW-sideSize-scrollbarSize, editRect.h = winH-downSize-scrollbarSize;
-					sideRect.x = winW-sideSize, sideRect.w = sideSize, sideRect.h = winH;
-					downRect.y = winH-downSize, downRect.w = winW-sideSize, downRect.h = downSize;
-					scrollbar1Rect.x = editRect.w, scrollbar1Rect.h = editRect.h;
-					scrollbar2Rect.y = editRect.h, scrollbar2Rect.w = editRect.w;
-
-					editBox.changeRectSizes(editRect);
-					sideBox.changeRectSizes(sideRect);
-					downBox.changeRectSizes(downRect);
+					editBox.resizeBox(0, 0, winW-sideSize, winH-downSize);
+					sideBox.resizeBox(winW-sideSize, 0, sideSize, winH);
+					downBox.resizeBox(0, winH-downSize, winW-sideSize, downSize);
 				}
 			}
 			else if(e.type == SDL_MOUSEMOTION || e.type == SDL_MOUSEBUTTONDOWN || e.type == SDL_MOUSEBUTTONUP) {
@@ -217,39 +201,21 @@ int main(int argc, char **argv)
 		//=== clear & render texture
 		SDL_RenderClear(renderer);
 
-		//=== set surf of each elements
-		// screen = SDL_CreateRGBSurface(0, winW,winH, 32, 0,0,0,0);
-		// SDL_FillRect(screen, &mainRect, SDL_MapRGBA(screen->format,100,100,100,255));
-		// texture = SDL_CreateTextureFromSurface(renderer, screen);
-		// SDL_RenderCopy(renderer, texture, NULL, &mainRect);
-		editBox.surf = SDL_CreateRGBSurface(0, editRect.w,editRect.h, 32, 0,0,0,0);
-		sideBox.surf = SDL_CreateRGBSurface(0, sideRect.w,sideRect.h, 32, 0,0,0,0);
-		downBox.surf = SDL_CreateRGBSurface(0, downRect.w,downRect.h, 32, 0,0,0,0);
-		editBox.setSurf_BoxBorder(editRect, SDL_MapRGBA(editBox.surf->format,0,150,0,255));
-		sideBox.setSurf_BoxBorder(sideRect, SDL_MapRGBA(sideBox.surf->format,150,0,0,255));
-		downBox.setSurf_BoxBorder(downRect, SDL_MapRGBA(downBox.surf->format,0,0,150,255));
+		//=== draw basic boxes in windows.
+		editBox.drawBox(renderer, font);
+		sideBox.drawBox(renderer, font);
+		downBox.drawBox(renderer, font);
 
-		//=== into texture for each element
-		editTexture = SDL_CreateTextureFromSurface(renderer, editBox.surf);
-		sideTexture = SDL_CreateTextureFromSurface(renderer, sideBox.surf);
-		downTexture = SDL_CreateTextureFromSurface(renderer, downBox.surf);
-
-		SDL_RenderCopy(renderer, editTexture, NULL, &editRect);
-		SDL_RenderCopy(renderer, sideTexture, NULL, &sideRect);
-		SDL_RenderCopy(renderer, downTexture, NULL, &downRect);
-
+		//=== draw boxes's contents. (drawing in textures.)
 		editBox.onMouseEvent(mouse, &textArt, font);
-		editBox.setSurf_Editor(renderer, textArt, font, timeFlag, mouse);
-		sideBox.setSurf_Menu(font, renderer, sideRect, mouse);
-		scroll1.setScroll_draw(renderer, font, scrollbar1Rect, mouse);
-		scroll2.setScroll_draw(renderer, font, scrollbar2Rect, mouse);
+		editBox.drawContent(renderer, textArt, font, timeFlag, mouse);
+		
+		sideBox.drawContent(renderer, font, mouse);
 
-		SDL_FreeSurface(editBox.surf);
-		SDL_FreeSurface(sideBox.surf);
-		SDL_FreeSurface(downBox.surf);
-		SDL_DestroyTexture(editTexture);
-		SDL_DestroyTexture(sideTexture);
-		SDL_DestroyTexture(downTexture);
+		//temp bar....
+		ScrollBar bar("vert");
+		bar.setupScrollBarLocation(winW-bar.scrollSize, 0, winH, font);
+		bar.drawScrollBar(renderer, font, mouse);
 
 		//=== time count for cursor
 		timenow = time(NULL);
