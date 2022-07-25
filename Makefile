@@ -18,5 +18,8 @@ asciiart.o: asciiart.cpp asciicalculate.o sdl_boxes.hpp
 asciicalculate.o: asciicalculate.cpp asciicalculate.hpp
 	g++ -Wall -c asciicalculate.cpp -o asciicalculate.o
 
+sdl_events.o: sdl_events.cpp sdl_events.hpp
+	g++ -Wall -c sdl_events.cpp -o sdl_events.o
+
 clean:
 	rm *.o

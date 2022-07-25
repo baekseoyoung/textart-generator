@@ -49,9 +49,34 @@ class Mouse
 	public:
 		int x;
 		int y;
+		bool hover = true;
 		bool press = false;
 		bool click = false;
-		int onBox = 0; //= 0, 1, 2, 3
+		SDL_Rect mScreen = {0,0,0,0}; //=== click-able screen area.
+
+		void onEvent(SDL_Event *e) {
+			SDL_GetMouseState(&x, &y);
+			if(mScreen.x<x && mScreen.y<y && mScreen.x+mScreen.w>x && mScreen.y+mScreen.h>y) {
+				hover = true;
+				if(e->type == SDL_MOUSEBUTTONDOWN) {
+					press = true;
+				}
+				if(e->type == SDL_MOUSEBUTTONUP) {
+					if(press == true) {
+						click = true;
+					}
+					press = false;
+				}
+			} else {
+				hover = false;
+			}
+		}
+		void setupMScreen(SDL_Rect rect) {
+			mScreen.x = rect.x;
+			mScreen.y = rect.y;
+			mScreen.w = rect.w;
+			mScreen.h = rect.h;
+		}
 };
 
 class Button
@@ -70,8 +95,8 @@ class Button
 		int paddSize = 5;
 
 		string text;
-		// int fontSize = 10;
 		SDL_Color fontColor = {255,255,255,0xFF};
+		SDL_Color bordColor = {255,255,255,255};
 		SDL_Color backColor = {0,0,0,0};
 
 		Button() : text("") {}
@@ -81,12 +106,12 @@ class Button
 		void drawButton(SDL_Renderer *renderer, TTF_Font *font) {
 			//=== color button margin, border, padding.
 			surf = SDL_CreateRGBSurface(0, margin.w,margin.h, 32, 0,0,0,0);
-			SDL_FillRect(surf, &margin, SDL_MapRGBA(surf->format,0,0,0,255));
-			SDL_FillRect(surf, &border, SDL_MapRGBA(surf->format,255,255,255,255));
+			SDL_FillRect(surf, &margin, SDL_MapRGBA(surf->format,0,0,0,0));
+			SDL_FillRect(surf, &border, SDL_MapRGBA(surf->format,bordColor.r,bordColor.g,bordColor.b,bordColor.a));
 			SDL_FillRect(surf, &padding, SDL_MapRGBA(surf->format,backColor.r,backColor.g,backColor.b,backColor.a));
 			//=== blit text.
 			SDL_Surface *tempSurf = TTF_RenderUTF8_Blended(font, text.c_str(), fontColor);
-			SDL_BlitSurface(tempSurf, NULL, surf, &content);
+			SDL_BlitScaled(tempSurf, NULL, surf, &content);
 			SDL_FreeSurface(tempSurf);
 
 			//=== into texture
@@ -134,19 +159,6 @@ class Button
 
 		//=== funcs for changing/setup button properties.
 		void setupButtonLocation(int x, int y, TTF_Font *font) {
-			setupButtonProp(font);
-			//=== rect
-			rect.x = x, rect.y = y;
-			rect.w = margin.w, rect.h = margin.h;
-		}
-		void setupButtonLocation(int x, int y, int wfix, int hfix, TTF_Font *font) {
-			margSize = 0;
-			setupButtonProp(font);
-			//=== rect
-			rect.x = x, rect.y = y;
-			rect.w = wfix, rect.h = hfix;
-		}
-		void setupButtonProp(TTF_Font *font) {
 			int w, h;
 			TTF_SizeText(font, text.c_str(), &w, &h);
 			//=== margin
@@ -167,15 +179,97 @@ class Button
 			content.y = margSize + bordSize + paddSize;
 			content.w = w;
 			content.h = h;
+			//=== rect
+			rect.x = x, rect.y = y;
+			rect.w = margin.w, rect.h = margin.h;
+		}
+		void setupButtonLocation(int x, int y, int wfix, int hfix, TTF_Font *font) {
+			// margSize = 0;
+			//=== rect
+			rect.x = x, rect.y = y;
+			rect.w = wfix, rect.h = hfix;
+			//=== margin
+			margin.w = wfix;
+			margin.h = hfix;
+			//=== border
+			border.x = margSize;
+			border.y = margSize;
+			border.w = wfix - 2*margSize;
+			border.h = hfix - 2*margSize;
+			//=== padding
+			padding.x = margSize + bordSize;
+			padding.y = margSize + bordSize;
+			padding.w = wfix - 2*margSize - 2*bordSize;
+			padding.h = hfix - 2*margSize - 2*bordSize;
+			//=== content
+			content.x = margSize + bordSize + paddSize;
+			content.y = margSize + bordSize + paddSize;
+			content.w = wfix - 2*margSize - 2*bordSize - 2*paddSize;
+			content.h = hfix - 2*margSize - 2*bordSize - 2*paddSize;
 		}
 		void setupButtonText(string s) {
 			text.clear();
 			text = s;
 		}
 		void setupButtonMBP(int m, int b, int p) {
-			margSize = m, bordSize = b, paddSize = p;
+			margSize = m;
+			bordSize = b;
+			paddSize = p;
+		}
+		void setupButtonColor(SDL_Color c) { //int r, int g, int b, int a
+			bordColor.r = c.r;
+			bordColor.g = c.g;
+			bordColor.b = c.b;
+			bordColor.a = c.a;
 		}
 		~Button() {}
+};
+
+class Tabs
+{
+	public:
+		vector<string> tabs;
+		int current = 0;
+		int w = 50;
+		int h = 20;
+		int borderSize = 5;
+		bool deleteable = true;
+
+		//=== draw tabs
+		void drawTabs(SDL_Renderer *renderer, TTF_Font *font, Mouse m, SDL_Rect rect, SDL_Color borderColor) {
+			for(int i=0; i<(int)tabs.size(); i++) {
+				if(i == current) {
+					Button tab(tabs[i]);
+					tab.setupButtonMBP(0, borderSize, 1);
+					tab.setupButtonColor(borderColor);
+					tab.setupButtonLocation(rect.x+i*w, rect.y, w, h+borderSize, font);
+					tab.padding.h += borderSize;
+					tab.onMouseEvent(m, NULL);
+					tab.drawButton(renderer, font);
+				} else {
+					Button tab(tabs[i]);
+					tab.setupButtonMBP(0, borderSize, 1);
+					tab.setupButtonColor(borderColor);
+					tab.setupButtonLocation(rect.x+i*w, rect.y, w, h+borderSize, font);
+					tab.onMouseEvent(m, NULL);
+					tab.drawButton(renderer, font);
+				}
+			}
+		}
+		//=== tab style, type related.
+		void setupTabOptions(int num, bool flag) {
+			borderSize = num;
+			deleteable = flag;
+		}
+		//=== tab manage functions
+		void addTab(string s) {
+			// current = tabs.size();
+			tabs.push_back(s);
+		}
+		void changeTab(int num) {
+			current = num;
+		}
+		void delTab(int tabNum) {}
 };
 
 class ScrollBar
@@ -246,14 +340,6 @@ class PopUp
 		SDL_Rect rect = {0,0,0,0};
 };
 
-class Cell
-{
-	public:
-		int w;
-		int h;
-		char c;
-};
-
 //=== box classes ===
 class Box
 {
@@ -265,16 +351,13 @@ class Box
 		SDL_Rect outer = {0,0,0,0};
 		SDL_Rect inner = {0,0,0,0};
 
-		int borderSize = 5;
+		int borderSize = 3;
 		SDL_Color borderColor = {255,255,255,255};
 
-		vector<string> tabs;
-		int tabW = 50;
-		int tabH = 20;
-		int tabCurrent = 0;
+		Tabs boxtabs;
 
 		//=== draw box outline using obj's data saved above.
-		void drawBox(SDL_Renderer *renderer, TTF_Font *font) {
+		void drawBox(SDL_Renderer *renderer, TTF_Font *font, Mouse m) {
 			//=== set box surf
 			surf = SDL_CreateRGBSurface(0, rect.w,rect.h, 32, 0,0,0,0);
 			SDL_FillRect(surf, &border, SDL_MapRGBA(surf->format, borderColor.r,borderColor.g,borderColor.b,borderColor.a));
@@ -286,23 +369,13 @@ class Box
 			//=== free
 			SDL_FreeSurface(surf);
 			SDL_DestroyTexture(texture);
-			//=== set tabs
-			for(int i=0; i<(int)tabs.size(); i++) {
-				if(i == tabCurrent) {
-					Button tab(tabs[i]);
-					tab.setupButtonLocation(rect.x+i*tabW, rect.y, tabW, tabH+borderSize, font);
-					tab.drawButton(renderer, font);
-				} else {
-					Button tab(tabs[i]);
-					tab.setupButtonLocation(rect.x+i*tabW, rect.y, tabW, tabH+borderSize, font);
-					tab.drawButton(renderer, font);
-				}
-			}
+			//=== draw tabs
+			boxtabs.drawTabs(renderer, font, m, rect, borderColor);
 		}
 		//=== change box size-related variables
 		void resizeBox(int x, int y, int w, int h) {
 			rect.x = x, rect.y = y, rect.w = w, rect.h = h;
-			border.x = 0, border.y = tabH, border.w = w, border.h = h-tabH;
+			border.x = 0, border.y = boxtabs.h, border.w = w, border.h = h-boxtabs.h;
 			//== outer
 			outer.x = border.x + borderSize;
 			outer.y = border.y + borderSize;
@@ -322,16 +395,6 @@ class Box
 			borderColor.a = a;
 		}
 		~Box() {}
-
-		//=== box's tab manage functions.
-		void addTab(string s) {
-			tabCurrent = tabs.size();
-			tabs.push_back(s);
-		}
-		void changeTab(int tabNum) {
-			tabCurrent = tabNum;
-		}
-		void delTab(int tabNum) {}
 };
 
 class EditBox : public Box
@@ -348,6 +411,14 @@ class EditBox : public Box
 		SDL_Rect curRect = {0, 0, 0, 0};
 		SDL_Color curColor = {0,255,0,0xFF};
 
+		EditBox() {}
+		void preset(TTF_Font *font) {
+			//=== tabs init.
+			boxtabs.setupTabOptions(borderSize, true);
+			boxtabs.addTab("File");
+			boxtabs.addTab("File");
+			boxtabs.addTab("File");
+		}
 		void drawContent(SDL_Renderer *renderer, TextArt textArt, TTF_Font *font, bool timeFlag, Mouse m) {
 			//=== text display
 			SDL_Surface *tempSurf;
@@ -424,10 +495,17 @@ class SideBox : public Box
 		Button saveBtn{"Save"};
 		Button newBtn{"New"};
 
-		void drawContent(SDL_Renderer *renderer, TTF_Font *font, Mouse m) {
+		SideBox() {}
+		void preset(TTF_Font *font) {
+			//=== tabs init.
+			boxtabs.setupTabOptions(borderSize, false);
+			boxtabs.addTab("File");
+			boxtabs.addTab("Edit");
 			//=== button setup
 			saveBtn.setupButtonLocation(rect.x+inner.x, rect.y+inner.y, font);
 			newBtn.setupButtonLocation(rect.x+inner.x+saveBtn.margin.w, rect.y+inner.y, font);
+		}
+		void drawContent(SDL_Renderer *renderer, TTF_Font *font, Mouse m) {
 			//===button mouse hover/click setup
 			saveBtn.onMouseEvent(m, &func_btn_save);
 			newBtn.onMouseEvent(m, &func_btn_new);
@@ -450,10 +528,12 @@ class SideBox : public Box
 class DownBox : public Box
 {
 	public:
-		void showSurf(int winW, int winH, TTF_Font *font) {
-			surf = SDL_CreateRGBSurface(0, winW,winH, 32, 0,0,0,0);
-			SDL_FillRect(surf, NULL, SDL_MapRGBA(surf->format,0,0,50,255));
-				//=== do the content work...
+		DownBox() {}
+		void preset(TTF_Font *font) {
+			//=== tabs init.
+			boxtabs.setupTabOptions(borderSize, false);
+			boxtabs.addTab("Animation");
 		}
+		void drawContent(SDL_Renderer *renderer, TTF_Font *font, Mouse m) {}
 		~DownBox() {}
 };

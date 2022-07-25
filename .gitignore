@@ -1,3 +1,10 @@
 *.o
+*.so
+*.a
 *.png
 *.exe
+*.txt
+sdl_events.cpp
+asciiart.sublime-workspace
+asciiart_sublime_proj.sublime-project
+asciiart_sublime_proj.sublime-workspace

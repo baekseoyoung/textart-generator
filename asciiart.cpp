@@ -43,10 +43,13 @@ int main(int argc, char **argv)
 
 	//=== sdl ttf
 	TTF_Init();
-	TTF_Font *font;
 	string fontPath = "assets/Ubuntu_Mono/UbuntuMono-Regular.ttf";
-	int fontSize = 20;
-	font = TTF_OpenFont(fontPath.c_str(), fontSize);
+	TTF_Font *font;
+	font = TTF_OpenFont(fontPath.c_str(), 20);
+	TTF_Font *font2;
+	font2 = TTF_OpenFont(fontPath.c_str(), 15);
+	TTF_Font *font3;
+	font3 = TTF_OpenFont(fontPath.c_str(), 10);
 
 	//=== sdl image
 	IMG_Init(IMG_INIT_JPG|IMG_INIT_PNG);
@@ -67,9 +70,9 @@ int main(int argc, char **argv)
 	sideBox.recolorBox(150,0,0,255);
 	downBox.recolorBox(0,0,150,255);
 
-	//temp tab
-	sideBox.addTab("File");
-	sideBox.addTab("Edit");
+	editBox.preset(font2);
+	sideBox.preset(font2);
+	downBox.preset(font2);
 
 	//=== init: text art obj, cursor timing, mouse.
 	TextArt textArt(10, 20);
@@ -81,6 +84,8 @@ int main(int argc, char **argv)
 	bool timeFlag = true;
 
 	Mouse mouse;
+	SDL_Rect screenRect = {0,0,winW,winH};
+	mouse.setupMScreen(screenRect);
 
 
 
@@ -94,29 +99,33 @@ int main(int argc, char **argv)
 		//=== event handles
 		while(SDL_PollEvent(&e) != 0)
 		{
+			//=== on quit
 			if(e.type == SDL_QUIT) {
 				quit = true;
 			}
+			//=== on other keyboard events
 			else if(e.type == SDL_KEYDOWN) {
-				//=== other keyboard events
-				timeprv = time(NULL); //=== visible cursor during keydown
-				if(SDL_GetModState() & KMOD_CTRL) { //=== ctrl
+				timeprv = time(NULL); //=== visible cursor during keydown 
+				//=== ctrl + keys.
+				if(SDL_GetModState() & KMOD_CTRL) {
 					switch(e.key.keysym.sym) {
 						case SDLK_s:
-							// func_write_file(&text);
+							func_write_file(&textArt.text);
 							break;
 						case SDLK_z:
 							cout<<"ctrlz"<<endl;
 							break;
 						case SDLK_o:
-							// func_win_open_dialog(&text);
-							// textRow = sizeof(text);
-							// textCol = sizeof(text[0]);
-							// editbox.curRow = 0;
-							// editbox.curCol = 0;
+							func_win_open_dialog(&textArt.text);
+							textArt.rowSize = textArt.text.size();
+							textArt.colSize = textArt.text[0].size();
+							textArt.rowCur = 0;
+							textArt.colCur = 0;
 							break;
 					}
-				} else { //=== text input related
+				}
+				//=== text-art edit related keys.
+				else {
 					switch(e.key.keysym.sym) {
 						case SDLK_BACKSPACE:
 							textArt.text[textArt.rowCur][textArt.colCur] = ' ';
@@ -147,75 +156,57 @@ int main(int argc, char **argv)
 					}
 				}
 			}
-			else if(e.type == SDL_TEXTINPUT) { //=== editbox text input
+			//=== on text inputs
+			else if(e.type == SDL_TEXTINPUT) {
 				textArt.text[textArt.rowCur][textArt.colCur] = (e.text.text)[0];
-				// text[editbox.curRow][editbox.curCol] = (e.text.text)[0];
-				// if (editbox.curCol+1 >= textCol) {
-				// 	if (editbox.curRow+1 >= textRow) {
-				// 		//
-				// 	} else {
-				// 		editbox.curRow += 1;
-				// 		editbox.curCol = 0;
-				// 	}
-				// } else {
-				// 	editbox.curCol += 1;
-				// }
+				//temp if notepad mode.
+				if(textArt.colCur+1 >= textArt.colSize) {
+					if(textArt.rowCur+1 >= textArt.rowSize) {}
+					else {
+						textArt.rowCur += 1;
+						textArt.colCur = 0;
+					}
+				} else {
+					textArt.colCur += 1;
+				}
 			}
+			//=== on window resize event
 			else if(e.type == SDL_WINDOWEVENT) {
-				//=== on window resize
 				if (e.window.event == SDL_WINDOWEVENT_SIZE_CHANGED) {
 					SDL_GetWindowSize(window, &winW, &winH);
+					//=== resize boxes
 					editBox.resizeBox(0, 0, winW-sideSize, winH-downSize);
 					sideBox.resizeBox(winW-sideSize, 0, sideSize, winH);
 					downBox.resizeBox(0, winH-downSize, winW-sideSize, downSize);
+					//=== resize mouse area.
+					screenRect = {0,0,winW,winH};
+					mouse.setupMScreen(screenRect);
 				}
 			}
+			//=== on mouse events
 			else if(e.type == SDL_MOUSEMOTION || e.type == SDL_MOUSEBUTTONDOWN || e.type == SDL_MOUSEBUTTONUP) {
-				//=== mouse event on each surface
-				SDL_GetMouseState(&mouse.x, &mouse.y);
-				if(e.type == SDL_MOUSEBUTTONDOWN) {
-					mouse.press = true;
-				}
-				if(e.type == SDL_MOUSEBUTTONUP) {
-					if(mouse.press == true) {
-						mouse.click = true;
-					}
-					mouse.press = false;
-				}
-				// if(mx>editRect.x && mx<editRect.x+editRect.w && my>editRect.y && my<editRect.y+editRect.h) { // on green
-				// 	// cout<<"green"<<endl;
-				// 	mouse = MOUSE_EDITBOX_CLICK;
-				// }
-				// if (mx>sideRect.x && mx<sideRect.x+sideRect.w && my>sideRect.y && my<sideRect.y+sideRect.h) { // on red
-				// 	// cout<<"red"<<endl;
-				// 	mouse = MOUSE_SIDEBOX_CLICK;
-				// }
-				// if (mx>downRect.x && mx<downRect.x+downRect.w && my>downRect.y && my<downRect.y+downRect.h) { // on blue
-				// 	// cout<<"blue"<<endl;
-				// 	mouse = MOUSE_DOWNBOX_CLICK;
-				// }
-				// cout<<mouse<<endl;
-				// cout<<mx<<" "<<my<<endl;
+				//=== change mouse states onEvent.
+				mouse.onEvent(&e);
 			}
 		}
 		//=== clear & render texture
 		SDL_RenderClear(renderer);
 
 		//=== draw basic boxes in windows.
-		editBox.drawBox(renderer, font);
-		sideBox.drawBox(renderer, font);
-		downBox.drawBox(renderer, font);
+		editBox.drawBox(renderer, font2, mouse);
+		sideBox.drawBox(renderer, font, mouse);
+		downBox.drawBox(renderer, font, mouse);
 
 		//=== draw boxes's contents. (drawing in textures.)
 		editBox.onMouseEvent(mouse, &textArt, font);
 		editBox.drawContent(renderer, textArt, font, timeFlag, mouse);
 		
-		sideBox.drawContent(renderer, font, mouse);
+		sideBox.drawContent(renderer, font2, mouse);
 
 		//temp bar....
-		ScrollBar bar("vert");
-		bar.setupScrollBarLocation(winW-bar.scrollSize, 0, winH, font);
-		bar.drawScrollBar(renderer, font, mouse);
+		// ScrollBar bar("vert");
+		// bar.setupScrollBarLocation(winW-bar.scrollSize, 0, winH, font);
+		// bar.drawScrollBar(renderer, font, mouse);
 
 		//=== time count for cursor
 		timenow = time(NULL);
